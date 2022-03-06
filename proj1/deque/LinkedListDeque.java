@@ -127,7 +127,6 @@ public class LinkedListDeque<Item> implements Deque<Item> {
         return node.item;
     }
 
-
     /**
      * Gets the item at the given index, where 0 is the front, 1 is the next item, and so forth.
      * If no such item exists, returns null. Must not alter the deque!
@@ -146,23 +145,60 @@ public class LinkedListDeque<Item> implements Deque<Item> {
         return null;
     }
 
-//    /**
-//     * The Deque objects we’ll make are iterable (i.e. Iterable<Item>)
-//     * so we must provide this method to return an iterator.
-//     * Iterating over the LinkedListDeque using a for-each loop should take time proportional to the number of items.
-//     */
-//    @Override
-//    public Iterator<Item> iterator() {
-//    }
-//
-//    /**
-//     * Returns whether the parameter o is equal to the Deque.
-//     * o is considered equal if it is a Deque and if it contains the same contents
-//     * (as governed by the generic T’s equals method) in the same order
-//     */
-//    @Override
-//    public boolean equals(Object o) {
-//    }
+    /**
+     * The Deque objects we’ll make are iterable (i.e. Iterable<Item>)
+     * so we must provide this method to return an iterator.
+     * Iterating over the LinkedListDeque using a for-each loop should take time proportional to the number of items.
+     */
+    @Override
+    public Iterator<Item> iterator() {
+        return new LinkedListDequeIterator();
+    }
+
+    private class LinkedListDequeIterator implements Iterator<Item> {
+        private Node node;
+
+        public LinkedListDequeIterator() {
+            node = sentinelNode;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return this.node.next != sentinelNode;
+        }
+
+        @Override
+        public Item next() {
+            Item item = node.next.item;
+            node = node.next;
+            return item;
+        }
+    }
+
+    /**
+     * Returns whether the parameter o is equal to the Deque.
+     * o is considered equal if it is a Deque and if it contains the same contents
+     * (as governed by the generic T’s equals method) in the same order
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Deque)) {
+            return false;
+        } else if (size() != ((Deque<?>) o).size()) {
+            return false;
+        } else {
+            Iterator<Item> iter1 = iterator();
+            Iterator<Item> iter2 = ((Deque<Item>) o).iterator();
+            while (iter1.hasNext()) {
+                Item a = iter1.next();
+                Item b = iter2.next();
+                if (!a.equals(b)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
     /**
      * It is the same as get, but uses recursion.

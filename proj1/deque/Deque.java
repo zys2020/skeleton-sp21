@@ -42,24 +42,23 @@ public interface Deque<Item> {
      */
     public Item removeLast();
 
-
     /**
      * Gets the item at the given index, where 0 is the front, 1 is the next item, and so forth.
      * If no such item exists, returns null. Must not alter the deque!
      */
     public Item get(int index);
-//
-//    /**
-//     * The Deque objects we’ll make are iterable (i.e. Iterable<Item>)
-//     * so we must provide this method to return an iterator.
-//     */
-//    public Iterator<Item> iterator();
-//
-//    /**
-//     * Returns whether the parameter o is equal to the Deque.
-//     * o is considered equal if it is a Deque and if it contains the same contents
-//     * (as governed by the generic T’s equals method) in the same order
-//     */
-//    public boolean equals(Object o);
+
+    /**
+     * The Deque objects we’ll make are iterable (i.e. Iterable<Item>)
+     * so we must provide this method to return an iterator.
+     */
+    public Iterator<Item> iterator();
+
+    /**
+     * Returns whether the parameter o is equal to the Deque.
+     * o is considered equal if it is a Deque and if it contains the same contents
+     * (as governed by the generic T’s equals method) in the same order
+     */
+    public boolean equals(Object o);
 
 }

@@ -6,6 +6,8 @@ import static org.junit.Assert.*;
 
 import edu.princeton.cs.algs4.Stopwatch;
 
+import java.util.Iterator;
+
 /**
  * Performs some basic linked list tests.
  */
@@ -205,5 +207,38 @@ public class LinkedListDequeTest {
         assertEquals(Integer.valueOf(10), lld.getRecursive(10));
         assertEquals(Integer.valueOf(220), lld.getRecursive(220));
         assertEquals(Integer.valueOf(5000), lld.getRecursive(5000));
+    }
+
+    @Test
+    public void iteratorTest() {
+        LinkedListDeque<Integer> lld = new LinkedListDeque<>();
+        for (int i = 0; i < 10000; i++) {
+            lld.addLast(i);
+        }
+        Iterator<Integer> iterator = lld.iterator();
+        int n = 0;
+        while (iterator.hasNext()) {
+            int i = iterator.next();
+            assertEquals(n, i);
+            n += 1;
+        }
+    }
+
+    @Test
+    public void equalTest() {
+        LinkedListDeque<Integer> lld1 = new LinkedListDeque<>();
+        for (int i = 0; i < 10000; i++) {
+            lld1.addLast(i);
+        }
+        LinkedListDeque<Integer> lld2 = new LinkedListDeque<>();
+        for (int i = 0; i < 10000; i++) {
+            lld2.addLast(i);
+        }
+        LinkedListDeque<Integer> lld3 = new LinkedListDeque<>();
+        for (int i = 0; i < 100; i++) {
+            lld3.addLast(i);
+        }
+        assertTrue(lld1.equals(lld2));
+        assertFalse(lld1.equals(lld3));
     }
 }

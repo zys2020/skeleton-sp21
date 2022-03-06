@@ -1,12 +1,17 @@
 package deque;
 
+import java.util.Iterator;
+
+/**
+ * An implementation of deque using array as the core data structure.
+ */
 public class ArrayDeque<Item> implements Deque<Item> {
+    private Item[] values;
     // The first item equals values[firstIndex]
     private int firstIndex;
     // The last item equals values[lastIndex - 1]
     private int lastIndex;
     private int size;
-    private Item[] values;
     private static float minUsageRatio;
     private static float maxUsageRatio;
 
@@ -14,14 +19,15 @@ public class ArrayDeque<Item> implements Deque<Item> {
         firstIndex = 0;
         lastIndex = 0;
         size = 0;
-        int initSize = 8;
+        int initSize = 8; // The starting size of your array should be 8.
         values = (Item[]) new Object[initSize];
-        minUsageRatio = 0.25F;
+        minUsageRatio = 0.25F; // For arrays of length 16 or more, your usage factor should always be at least 25%.
         maxUsageRatio = 0.50F;
     }
 
     /**
      * Adds an item of type Item to the front of the deque. You can assume that item is never null.
+     * Take constant time, except during resizing operations.
      */
     @Override
     public void addFirst(Item item) {
@@ -59,6 +65,7 @@ public class ArrayDeque<Item> implements Deque<Item> {
 
     /**
      * Adds an item of type Item to the back of the deque. You can assume that item is never null.
+     * Take constant time, except during resizing operations.
      */
     @Override
     public void addLast(Item item) {
@@ -88,6 +95,7 @@ public class ArrayDeque<Item> implements Deque<Item> {
 
     /**
      * Returns the number of items in the deque.
+     * Take constant time.
      */
     @Override
     public int size() {
@@ -183,6 +191,7 @@ public class ArrayDeque<Item> implements Deque<Item> {
 
     /**
      * Removes and returns the item at the front of the deque. If no such item exists, returns null.
+     * Take constant time, except during resizing operations.
      */
     @Override
     public Item removeFirst() {
@@ -226,6 +235,7 @@ public class ArrayDeque<Item> implements Deque<Item> {
 
     /**
      * Removes and returns the item at the back of the deque. If no such item exists, returns null.
+     * Take constant time, except during resizing operations.
      */
     @Override
     public Item removeLast() {
@@ -241,6 +251,7 @@ public class ArrayDeque<Item> implements Deque<Item> {
     /**
      * Gets the item at the given index, where 0 is the front, 1 is the next item, and so forth.
      * If no such item exists, returns null. Must not alter the deque!
+     * Take constant time.
      */
     @Override
     public Item get(int index) {
@@ -251,21 +262,58 @@ public class ArrayDeque<Item> implements Deque<Item> {
         }
     }
 
-//    /**
-//     * The Deque objects we’ll make are iterable (i.e. Iterable<Item>)
-//     * so we must provide this method to return an iterator.
-//     */
-//    @Override
-//    public Iterator<Item> iterator() {
-//    }
-//
-//    /**
-//     * Returns whether the parameter o is equal to the Deque.
-//     * o is considered equal if it is a Deque and if it contains the same contents
-//     * (as governed by the generic T’s equals method) in the same order
-//     */
-//    @Override
-//    public boolean equals(Object o) {
-//    }
+    /**
+     * The Deque objects we’ll make are iterable (i.e. Iterable<Item>)
+     * so we must provide this method to return an iterator.
+     */
+    @Override
+    public Iterator<Item> iterator() {
+        return new ArrayDequeIterator();
+    }
+
+    private class ArrayDequeIterator implements Iterator<Item> {
+        private int n;
+
+        public ArrayDequeIterator() {
+            n = 0;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return n < size();
+        }
+
+        @Override
+        public Item next() {
+            Item item = values[n];
+            n += 1;
+            return item;
+        }
+    }
+
+    /**
+     * Returns whether the parameter o is equal to the Deque.
+     * o is considered equal if it is a Deque and if it contains the same contents
+     * (as governed by the generic T’s equals method) in the same order
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Deque)) {
+            return false;
+        } else if (size() != ((Deque<?>) o).size()) {
+            return false;
+        } else {
+            Iterator<Item> iter1 = iterator();
+            Iterator<Item> iter2 = ((Deque<Item>) o).iterator();
+            while (iter1.hasNext()) {
+                Item a = iter1.next();
+                Item b = iter2.next();
+                if (!a.equals(b)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
 }

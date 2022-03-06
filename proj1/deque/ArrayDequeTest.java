@@ -1,16 +1,20 @@
 package deque;
 
+import edu.princeton.cs.algs4.StdRandom;
 import edu.princeton.cs.algs4.Stopwatch;
 import org.junit.Test;
+
+import java.util.Iterator;
 
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 
 public class ArrayDequeTest {
-    @Test
-    /** Adds a few things to the list, checking isEmpty() and size() are correct,
+    /**
+     * Adds a few things to the list, checking isEmpty() and size() are correct,
      * finally printing the results.
-     * */
+     */
+    @Test
     public void addIsEmptySizeTest() {
         ArrayDeque<String> lld1 = new ArrayDeque<>();
 
@@ -30,10 +34,10 @@ public class ArrayDequeTest {
         lld1.printDeque();
     }
 
-    @Test
     /**
      * Adds an item, then removes an item, and ensures that dll is empty afterwards.
-     * */
+     */
+    @Test
     public void addRemoveTest() {
         ArrayDeque<Integer> lld1 = new ArrayDeque<>();
         // should be empty
@@ -56,8 +60,10 @@ public class ArrayDequeTest {
 
     }
 
+    /**
+     * Tests removing from an empty deque
+     */
     @Test
-    /* Tests removing from an empty deque */
     public void removeEmptyTest() {
         ArrayDeque<Integer> lld1 = new ArrayDeque<>();
         lld1.addFirst(3);
@@ -75,10 +81,10 @@ public class ArrayDequeTest {
         assertEquals(errorMsg, 0, size);
     }
 
-    @Test
     /**
      * Check if you can create ArrayDeque with different parameterized types.
-     * */
+     */
+    @Test
     public void multipleParamTest() {
         ArrayDeque<String> lld1 = new ArrayDeque<>();
         ArrayDeque<Double> lld2 = new ArrayDeque<>();
@@ -93,10 +99,10 @@ public class ArrayDequeTest {
         boolean b = lld3.removeFirst();
     }
 
-    @Test
     /**
      * check if null is return when removing from an empty LinkedListDeque.
-     * */
+     */
+    @Test
     public void emptyNullReturnTest() {
 
         ArrayDeque<Integer> lld1 = new ArrayDeque<>();
@@ -107,8 +113,10 @@ public class ArrayDequeTest {
         assertNull("Should return null when removeLast is called on an empty Deque,", lld1.removeLast());
     }
 
+    /**
+     * Add large number of elements to deque; check if order is correct.
+     */
     @Test
-    /* Add large number of elements to deque; check if order is correct. */
     public void bigLLDequeTest() {
         ArrayDeque<Integer> lld1 = new ArrayDeque<>();
         for (int i = 0; i < 1000000; i++) {
@@ -124,11 +132,11 @@ public class ArrayDequeTest {
         }
     }
 
-    @Test
     /**
      * Check if the difference between maximal elapsed time and minimal elapsed time is greater than 1s.
      * if false, it represents that the execution time of add and remove is constant.
-     * */
+     */
+    @Test
     public void addAndRemoveTimeTest() {
         ArrayDeque<Integer> lld = new ArrayDeque<>();
         Stopwatch stopwatch = new Stopwatch();
@@ -218,4 +226,80 @@ public class ArrayDequeTest {
         assertEquals(Integer.valueOf(220), lld.getRecursive(220));
         assertEquals(Integer.valueOf(5000), lld.getRecursive(5000));
     }
+
+    @Test
+    public void iteratorTest() {
+        ArrayDeque<Integer> lld = new ArrayDeque<>();
+        for (int i = 0; i < 10000; i++) {
+            lld.addLast(i);
+        }
+        Iterator<Integer> iterator = lld.iterator();
+        int n = 0;
+        while (iterator.hasNext()) {
+            int i = iterator.next();
+            assertEquals(n, i);
+            n += 1;
+        }
+    }
+
+    @Test
+    public void equalTest() {
+        ArrayDeque<Integer> lld1 = new ArrayDeque<>();
+        for (int i = 0; i < 10000; i++) {
+            lld1.addLast(i);
+        }
+        ArrayDeque<Integer> lld2 = new ArrayDeque<>();
+        for (int i = 0; i < 10000; i++) {
+            lld2.addLast(i);
+        }
+        ArrayDeque<Integer> lld3 = new ArrayDeque<>();
+        for (int i = 0; i < 100; i++) {
+            lld3.addLast(i);
+        }
+        assertTrue(lld1.equals(lld2));
+        assertFalse(lld1.equals(lld3));
+
+        LinkedListDeque<Integer> lld4 = new LinkedListDeque<>();
+        for (int i = 0; i < 10000; i++) {
+            lld4.addLast(i);
+        }
+        assertTrue(lld1.equals(lld4));
+    }
+
+    /**
+     * Test LinkedListDeque and ArrayDeque randomly.
+     */
+    @Test
+    public void randomizedTest() {
+        ArrayDeque<Integer> L = new ArrayDeque<>();
+        LinkedListDeque<Integer> buggyAList = new LinkedListDeque<>();
+        int N = 500000;
+        for (int i = 0; i < N; i += 1) {
+            int operationNumber = StdRandom.uniform(0, 4);
+            if (operationNumber == 0) {
+                // addLast
+                int randVal = StdRandom.uniform(0, 100);
+                L.addLast(randVal);
+                buggyAList.addLast(randVal);
+            } else if (operationNumber == 1) {
+                // size
+                int size = L.size();
+                assertEquals(size, buggyAList.size());
+            } else if (operationNumber == 2) {
+                if (L.size() == 0) {
+                    continue;
+                }
+                int index = StdRandom.uniform(0, L.size());
+                Integer lastItem = L.get(index);
+                assertEquals(lastItem, buggyAList.get(index));
+            } else if (operationNumber == 3) {
+                if (L.size() == 0) {
+                    continue;
+                }
+                Integer lastItem = L.removeLast();
+                assertEquals(lastItem, buggyAList.removeLast());
+            }
+        }
+    }
+
 }
