@@ -1,22 +1,18 @@
 package deque;
 
+import edu.princeton.cs.algs4.Stopwatch;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
-import edu.princeton.cs.algs4.Stopwatch;
-
-/**
- * Performs some basic linked list tests.
- */
-public class LinkedListDequeTest {
-
+public class ArrayDequeTest {
     @Test
     /** Adds a few things to the list, checking isEmpty() and size() are correct,
      * finally printing the results.
      * */
     public void addIsEmptySizeTest() {
-        LinkedListDeque<String> lld1 = new LinkedListDeque<String>();
+        ArrayDeque<String> lld1 = new ArrayDeque<>();
 
         assertTrue("A newly initialized LLDeque should be empty", lld1.isEmpty());
         lld1.addFirst("front");
@@ -39,7 +35,7 @@ public class LinkedListDequeTest {
      * Adds an item, then removes an item, and ensures that dll is empty afterwards.
      * */
     public void addRemoveTest() {
-        LinkedListDeque<Integer> lld1 = new LinkedListDeque<Integer>();
+        ArrayDeque<Integer> lld1 = new ArrayDeque<>();
         // should be empty
         assertTrue("lld1 should be empty upon initialization", lld1.isEmpty());
 
@@ -63,7 +59,7 @@ public class LinkedListDequeTest {
     @Test
     /* Tests removing from an empty deque */
     public void removeEmptyTest() {
-        LinkedListDeque<Integer> lld1 = new LinkedListDeque<>();
+        ArrayDeque<Integer> lld1 = new ArrayDeque<>();
         lld1.addFirst(3);
 
         lld1.removeLast();
@@ -81,12 +77,12 @@ public class LinkedListDequeTest {
 
     @Test
     /**
-     * Check if you can create LinkedListDeques with different parameterized types.
+     * Check if you can create ArrayDeque with different parameterized types.
      * */
     public void multipleParamTest() {
-        LinkedListDeque<String> lld1 = new LinkedListDeque<String>();
-        LinkedListDeque<Double> lld2 = new LinkedListDeque<Double>();
-        LinkedListDeque<Boolean> lld3 = new LinkedListDeque<Boolean>();
+        ArrayDeque<String> lld1 = new ArrayDeque<>();
+        ArrayDeque<Double> lld2 = new ArrayDeque<>();
+        ArrayDeque<Boolean> lld3 = new ArrayDeque<>();
 
         lld1.addFirst("string");
         lld2.addFirst(3.14159);
@@ -103,7 +99,7 @@ public class LinkedListDequeTest {
      * */
     public void emptyNullReturnTest() {
 
-        LinkedListDeque<Integer> lld1 = new LinkedListDeque<Integer>();
+        ArrayDeque<Integer> lld1 = new ArrayDeque<>();
 
         boolean passed1 = false;
         boolean passed2 = false;
@@ -114,7 +110,7 @@ public class LinkedListDequeTest {
     @Test
     /* Add large number of elements to deque; check if order is correct. */
     public void bigLLDequeTest() {
-        LinkedListDeque<Integer> lld1 = new LinkedListDeque<Integer>();
+        ArrayDeque<Integer> lld1 = new ArrayDeque<>();
         for (int i = 0; i < 1000000; i++) {
             lld1.addLast(i);
         }
@@ -134,13 +130,17 @@ public class LinkedListDequeTest {
      * if false, it represents that the execution time of add and remove is constant.
      * */
     public void addAndRemoveTimeTest() {
-        LinkedListDeque<Integer> lld = new LinkedListDeque<>();
+        ArrayDeque<Integer> lld = new ArrayDeque<>();
         Stopwatch stopwatch = new Stopwatch();
         lld.addLast(0);
         double elapsedTime = stopwatch.elapsedTime();
         double minElapsedTime = elapsedTime;
         double maxElapsedTime = elapsedTime;
         for (int i = 1; i < 1000000; i++) {
+            if (lld.isFull()) {
+                lld.addLast(i);
+                continue;
+            }
             stopwatch = new Stopwatch();
             lld.addLast(i);
             elapsedTime = stopwatch.elapsedTime();
@@ -155,6 +155,10 @@ public class LinkedListDequeTest {
         maxElapsedTime = elapsedTime;
         minElapsedTime = elapsedTime;
         for (int i = 1; i < 1000000; i++) {
+            if (lld.isLowUsageRatio()) {
+                lld.removeLast();
+                continue;
+            }
             stopwatch = new Stopwatch();
             lld.removeLast();
             elapsedTime = stopwatch.elapsedTime();
@@ -169,6 +173,10 @@ public class LinkedListDequeTest {
         minElapsedTime = elapsedTime;
         maxElapsedTime = elapsedTime;
         for (int i = 1; i < 1000000; i++) {
+            if (lld.isFull()) {
+                lld.addFirst(i);
+                continue;
+            }
             stopwatch = new Stopwatch();
             lld.addFirst(i);
             elapsedTime = stopwatch.elapsedTime();
@@ -183,6 +191,10 @@ public class LinkedListDequeTest {
         maxElapsedTime = elapsedTime;
         minElapsedTime = elapsedTime;
         for (int i = 1; i < 1000000; i++) {
+            if (lld.isLowUsageRatio()) {
+                lld.removeFirst();
+                continue;
+            }
             stopwatch = new Stopwatch();
             lld.removeFirst();
             elapsedTime = stopwatch.elapsedTime();
