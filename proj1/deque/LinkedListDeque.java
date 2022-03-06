@@ -61,14 +61,6 @@ public class LinkedListDeque<Item> implements Deque<Item> {
     }
 
     /**
-     * Returns true if deque is empty, false otherwise.
-     */
-    @Override
-    public boolean isEmpty() {
-        return size == 0;
-    }
-
-    /**
      * Returns the number of items in the deque.
      * Take constant time.
      */

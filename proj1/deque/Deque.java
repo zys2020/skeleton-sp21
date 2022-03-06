@@ -19,7 +19,9 @@ public interface Deque<Item> {
     /**
      * Returns true if deque is empty, false otherwise.
      */
-    public boolean isEmpty();
+    default public boolean isEmpty() {
+        return size() == 0;
+    }
 
     /**
      * Returns the number of items in the deque.
