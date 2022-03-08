@@ -22,7 +22,7 @@ PACKAGE = capers
 # has a different name for this program (such as just "python"), run
 # the Makefile with
 #	make PYTHON=python check
-PYTHON = "E:/Program' 'Files/Python/Python38/python.exe"
+PYTHON = python3
 
 # Flags to pass to tester.py.
 TESTER_FLAGS =
