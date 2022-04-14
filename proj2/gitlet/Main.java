@@ -1,5 +1,7 @@
 package gitlet;
 
+import java.util.Arrays;
+
 /**
  * Driver class for Gitlet, a subset of the Git version-control system.
  *
@@ -17,6 +19,7 @@ public class Main {
         Repository.add("file1.txt");
         Repository.add("file2.txt");
         Repository.commit("A test commit");
+        Repository.add("file3.txt");
         // TODO: what if args is empty?
         if (args.length == 0) {
             // help info
@@ -28,9 +31,13 @@ public class Main {
                 Repository.init();
                 break;
             case "add":
-                // TODO: handle the `add [filename]` command
+                Repository.add(Arrays.copyOfRange(args, 1, args.length));
                 break;
-            // TODO: FILL THE REST IN
+            case "commit":
+                Repository.commit(args[1]);
+                break;
+            case "rm":
+                break;
         }
     }
 }

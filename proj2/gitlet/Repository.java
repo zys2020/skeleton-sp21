@@ -64,11 +64,10 @@ public class Repository {
         if (!Files.exists(path)) {
             return;
         }
-        try {
-            Files.walk(path)
-                    .sorted(Comparator.reverseOrder())
+        try (Stream<Path> walk = Files.walk(path)) {
+            walk.sorted(Comparator.reverseOrder())
                     .map(Path::toFile)
-                    .peek(System.out::println)
+//                    .peek(System.out::println)
                     .forEach(File::delete);
         } catch (IOException exception) {
             exception.printStackTrace();
