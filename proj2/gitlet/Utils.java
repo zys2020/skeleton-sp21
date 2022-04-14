@@ -21,6 +21,8 @@ import java.util.Date;
 import java.util.Formatter;
 import java.util.List;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+
 
 /**
  * Assorted utilities.
@@ -260,8 +262,6 @@ class Utils {
         }
     }
 
-
-
     /* MESSAGES AND ERROR REPORTING */
 
     /**
@@ -306,6 +306,15 @@ class Utils {
         SimpleDateFormat dateFormat = new SimpleDateFormat(format);
         return dateFormat.format(date);
 
+    }
+
+    static void moveDirectory(File oriDir, File desDir) {
+        try {
+            Files.move(oriDir.toPath(), desDir.toPath(), REPLACE_EXISTING);
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+            throw new RuntimeException("moving failed");
+        }
     }
 
     public static void main(String[] args) {

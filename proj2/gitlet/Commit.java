@@ -1,6 +1,7 @@
 package gitlet;
 
 import java.io.Serializable;
+import java.util.HashMap;
 
 /**
  * Represents a gitlet commit object.
@@ -39,12 +40,19 @@ public class Commit implements Serializable {
      */
     public final String mergedParentHash;
 
-    public Commit(String message, String author, String timestamp, String hash, String parentHash, String mergedParentHash) {
+    /**
+     * This is blob map from a filename (key) to SHA1 code (value) of the file
+     */
+    public final HashMap<String, String> blobMap;
+
+    public Commit(String message, String author, String timestamp, String hash, String parentHash,
+                  String mergedParentHash, HashMap<String, String> blobMap) {
         this.message = message;
         this.author = author;
         this.timestamp = timestamp;
         this.hash = hash;
         this.parentHash = parentHash;
         this.mergedParentHash = mergedParentHash;
+        this.blobMap = blobMap;
     }
 }

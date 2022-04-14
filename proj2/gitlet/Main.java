@@ -14,6 +14,9 @@ public class Main {
     public static void main(String[] args) {
         Repository.clear();
         Repository.init();
+        Repository.add("file1.txt");
+        Repository.add("file2.txt");
+        Repository.commit("A test commit");
         // TODO: what if args is empty?
         if (args.length == 0) {
             // help info
@@ -22,7 +25,7 @@ public class Main {
         String firstArg = args[0];
         switch (firstArg) {
             case "init":
-                // TODO: handle the `init` command
+                Repository.init();
                 break;
             case "add":
                 // TODO: handle the `add [filename]` command
