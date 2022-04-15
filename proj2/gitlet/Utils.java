@@ -10,19 +10,17 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Formatter;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Stream;
 
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-
+import org.apache.commons.io.FileUtils;
 
 /**
  * Assorted utilities.
@@ -146,7 +144,7 @@ class Utils {
             }
             if (!file.getParentFile().exists()) {
                 file.getParentFile().mkdirs();
-                System.out.println("Create new directory `" + file.getParent() + "`");
+//                System.out.println("Create new directory `" + file.getParent() + "`");
             }
             BufferedOutputStream str = new BufferedOutputStream(Files.newOutputStream(file.toPath()));
             for (Object obj : contents) {
@@ -166,11 +164,12 @@ class Utils {
      * Return an object of type T read from FILE, casting it to EXPECTEDCLASS.
      * Throws IllegalArgumentException in case of problems.
      */
-    static <T extends Serializable> T readObject(File file,
-                                                 Class<T> expectedClass) {
+    static <T extends Serializable> T readObject(File file, Class<T> expectedClass) {
         try {
-            ObjectInputStream in =
-                    new ObjectInputStream(new FileInputStream(file));
+            if (!file.exists()) {
+                return null;
+            }
+            ObjectInputStream in = new ObjectInputStream(new FileInputStream(file));
             T result = expectedClass.cast(in.readObject());
             in.close();
             return result;
@@ -295,25 +294,68 @@ class Utils {
     }
 
     /**
-     * convert timestamp Date to timestamp String
+     * convert timestamp Date to timestamp String that is a local time
      */
     static String convertDateToString(Date date) {
-        return convertDateToString(date, TIME_FORMAT);
+        return convertDateToString(date, TIME_FORMAT, null);
 
     }
 
-    static String convertDateToString(Date date, String format) {
+    static String convertDateToString(Date date, String timeZone) {
+        return convertDateToString(date, TIME_FORMAT, timeZone);
+
+    }
+
+    static String convertDateToString(Date date, String format, String timeZone) {
         SimpleDateFormat dateFormat = new SimpleDateFormat(format);
+        if (timeZone != null) {
+            dateFormat.setTimeZone(TimeZone.getTimeZone(timeZone));
+        }
         return dateFormat.format(date);
 
     }
 
+    /**
+     * move the directory oriDir to the directory desDir
+     */
     static void moveDirectory(File oriDir, File desDir) {
+        if (!oriDir.exists()) {
+            return;
+        }
         try {
-            Files.move(oriDir.toPath(), desDir.toPath(), REPLACE_EXISTING);
+            if (!desDir.getParentFile().exists()) {
+                desDir.getParentFile().mkdirs();
+//                System.out.println("Create new directory `" + desDir.getParent() + "`");
+            }
+            FileUtils.copyDirectory(oriDir, desDir);
+            deleteDirectory(oriDir);
+//             DirectoryNotEmptyException will throw.
+//            Files.move(oriDir.toPath(), desDir.toPath(), REPLACE_EXISTING);
         } catch (IOException ioException) {
             ioException.printStackTrace();
             throw new RuntimeException("moving failed");
+        }
+    }
+
+    /**
+     * delete "dir" directory with the constraint that Repository.CWD cannot be deleted.
+     */
+    static void deleteDirectory(File dir) {
+        Path path = dir.toPath();
+        if (!dir.exists()) {
+            return;
+        }
+        if (Repository.CWD.toString().contains(dir.toString())) {
+            System.out.println("cannot delete the current work directory");
+            return;
+        }
+        try (Stream<Path> walk = Files.walk(path)) {
+            walk.sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+//                    .peek(System.out::println)
+                    .forEach(File::delete);
+        } catch (IOException exception) {
+            exception.printStackTrace();
         }
     }
 
@@ -322,5 +364,6 @@ class Utils {
         System.out.println(date);
         String timeString = convertDateToString(new Date());
         System.out.println(timeString);
+        deleteDirectory(Repository.CWD);
     }
 }
