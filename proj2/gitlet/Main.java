@@ -16,26 +16,30 @@ public class Main {
     public static void main(String[] args) {
         Repository.clear();
         Repository.init();
-//        Repository.status();
-        Repository.add("file1.txt");
-//        Repository.status();
-        Repository.add("file2.txt");
-//        Repository.status();
-        Repository.commit("Test commit 1");
-//        Repository.status();
-        Repository.add("file3.txt");
-//        Repository.status();
-        Repository.rm("file3.txt");
-//        Repository.status();
-        Repository.rm("file2.txt");
-//        Repository.status();
-        Repository.rm("file4.txt");
-//        Repository.status();
-        Repository.commit("Delete file2.txt");
-//        Repository.status();
-        Repository.log();
-        Repository.global_log();
-        Repository.find("Test commit 1");
+////        Repository.status();
+//        Repository.add("file1.txt");
+////        Repository.status();
+//        Repository.add("file2.txt");
+////        Repository.status();
+//        Repository.commit("Test commit 1");
+////        Repository.status();
+//        Repository.add("file3.txt");
+////        Repository.status();
+//        Repository.rm("file3.txt");
+////        Repository.status();
+//        Repository.rm("file2.txt");
+////        Repository.status();
+//        Repository.rm("file4.txt");
+////        Repository.status();
+//        Repository.commit("Delete file2.txt");
+////        Repository.status();
+////        Repository.log();
+////        Repository.global_log();
+//        Repository.find("Test commit 1");
+////        Repository.checkout("file1.txt");
+//        Repository.checkout("file2.txt");
+//        Repository.branch("dev");
+//        Repository.rm_branch("dev");
         // TODO: what if args is empty?
         if (args.length == 0) {
             // help info
@@ -67,6 +71,19 @@ public class Main {
             case "status":
                 Repository.status();
                 break;
+            case "checkout":
+                break;
+            case "branch":
+                Repository.branch(args[1]);
+                break;
+            case "rm-branch":
+                Repository.rm_branch(args[1]);
+                break;
+            case "reset":
+                break;
+            case "merge":
+                break;
+
         }
     }
 }

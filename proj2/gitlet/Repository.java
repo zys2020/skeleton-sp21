@@ -42,11 +42,29 @@ public class Repository {
      */
     public static final File OBJECTS_DIR = join(GITLET_DIR, "objects");
 
+    /**
+     * The .gitlet/refs directory commit references.
+     */
+    public static final File REFS_DIR = join(GITLET_DIR, "refs");
+
+    /**
+     * The .gitlet/refs/heads directory saving branches.
+     */
+    public static final File HEAEDS_DIR = join(REFS_DIR, "heads");
+
+    /**
+     * The .gitlet/refs/remotes directory saving branches.
+     */
+    public static final File REMOTE_DIR = join(REFS_DIR, "remotes");
+
+    /**
+     * The .gitlet/refs/tags directory saving branches.
+     */
+    public static final File TAGS_DIR = join(REFS_DIR, "tags");
+
     public static String author = "auto";
 
-    public static String currentBranch = "main";
-
-    public static HashSet<String> branchSet = new HashSet<>();
+    public static String currentBranch;
 
     public static Commit currentHead;
 
@@ -58,7 +76,7 @@ public class Repository {
     /**
      * The timestamp of each commit is not a local time but a standard time
      */
-    static final String TIME_ZONE = "GMT";
+    public static final String TIME_ZONE = "GMT";
 
     public static void clear() {
         deleteDirectory(Repository.GITLET_DIR);
@@ -68,20 +86,39 @@ public class Repository {
      * `git init` command
      */
     public static void init() {
+        if (Repository.GITLET_DIR.exists()) {
+            System.out.println("A Gitlet version-control system already exists in the current directory.");
+            return;
+        }
+        Repository.currentBranch = "main";
         String message = "initial commit";
-        String timeString = "1970-01-01 08:00:00 +0000";
+        String timeString = "1970-01-01 00:00:00 +0000";
         String hash = sha1(message, Repository.author, timeString);
         Commit commit = new Commit(message, Repository.author, timeString, hash, null, null, null);
         Repository.currentHead = commit;
+        // write the head point of the branch
+        Repository.writeHead();
         File file = join(COMMIT_DIR, commit.hash);
+        // write the commit instance
         writeObject(file, commit);
-        Repository.branchSet.add(Repository.currentBranch);
+    }
+
+    private static void writeHead() {
+        Repository.writeHead(Repository.currentBranch, Repository.currentHead.hash);
+    }
+
+    private static void writeHead(String branch, String commitHash) {
+        writeContents(join(Repository.HEAEDS_DIR, branch), commitHash);
     }
 
     /**
      * `git add` command
      */
     public static void add(String filename) {
+        if (!join(Repository.CWD, filename).exists()) {
+            System.out.println("File does not exist.");
+            return;
+        }
         byte[] content = readContents(join(Repository.CWD, filename));
         String hash = sha1(content);
         File file = hashFilename(OBJECTS_DIR, hash, "add");
@@ -106,7 +143,7 @@ public class Repository {
         }
     }
 
-    private static File hashFilename(File parentDir, String hash, String mode) {
+    public static File hashFilename(File parentDir, String hash, String mode) {
         String prefix;
         if (mode == null) {
             prefix = "";
@@ -139,6 +176,7 @@ public class Repository {
         Commit commit = new Commit(message, Repository.author, timeString, hash, parentHash,
                 null, Repository.blobMap);
         Repository.currentHead = commit;
+        Repository.writeHead();
         File file = join(COMMIT_DIR, commit.hash);
         writeObject(file, commit);
         Repository.blobMap = new HashMap<>();
@@ -265,7 +303,7 @@ public class Repository {
         StringBuilder builder = new StringBuilder();
         builder.append("=== Branches ===").append('\n');
         builder.append("*").append(Repository.currentBranch).append('\n');
-        for (String branch : Repository.branchSet) {
+        for (String branch : Repository.HEAEDS_DIR.list()) {
             if (branch.equals(Repository.currentBranch)) {
                 continue;
             }
@@ -301,5 +339,58 @@ public class Repository {
         builder.append('\n');
 
         System.out.println(builder);
+    }
+
+    /**
+     * `git checkout` command
+     */
+    public static void checkout(String commitHash, String filename) {
+        Commit commit = readObject(join(Repository.COMMIT_DIR, commitHash), Commit.class);
+        if (commit == null) {
+            System.out.println("No commit with that id exists");
+            return;
+        }
+        if (!commit.blobMap.containsKey(filename)) {
+            System.out.println("File does not exist in that commit");
+            return;
+        }
+        if (Repository.blobMap.containsKey(filename)) {
+            String hash = Repository.blobMap.remove(filename);
+            File file = hashFilename(STAGING_DIR, hash, "add");
+            restrictedDelete(file);
+            file = hashFilename(STAGING_DIR, hash, "remove");
+            restrictedDelete(file);
+        }
+        String hash = commit.blobMap.get(filename);
+        File file = hashFilename(OBJECTS_DIR, hash, null);
+        byte[] content = readContents(file);
+        writeContents(join(Repository.CWD, filename), content);
+    }
+
+    public static void checkout(String filename) {
+        checkout(Repository.currentHead.hash, filename);
+    }
+
+    /**
+     * `git branch` command
+     */
+    public static void branch(String branch) {
+        Repository.writeHead(branch, Repository.currentHead.hash);
+    }
+
+    /**
+     * `git rm-branch` command
+     */
+    public static void rm_branch(String branch) {
+        if (branch.equals(Repository.currentBranch)) {
+            System.out.println("Cannot remove the current branch");
+            return;
+        }
+        File file = join(HEAEDS_DIR, branch);
+        if (!file.exists()) {
+            System.out.println("A branch with that name does not exist.");
+            return;
+        }
+        file.delete();
     }
 }
