@@ -69,9 +69,14 @@ public class Repository {
     public static Commit currentHead;
 
     /**
-     * Key is a filename and Value is the SHA1 code of the file
+     * Staging blobs whose Key is a filename and Value is the SHA1 code of the file.
      */
     public static HashMap<String, String> blobMap = new HashMap<>();
+
+    /**
+     * Committed blobs whose Key is a filename and Value is the SHA1 code of the file.
+     */
+    public static HashMap<String, String> committedBlobMap = new HashMap<>();
 
     /**
      * The timestamp of each commit is not a local time but a standard time
@@ -121,19 +126,16 @@ public class Repository {
         }
         byte[] content = readContents(join(Repository.CWD, filename));
         String hash = sha1(content);
-        File file = hashFilename(OBJECTS_DIR, hash, "add");
-        if (file.exists()) {
+        if (Repository.committedBlobMap.containsKey(filename) &&
+                Repository.committedBlobMap.get(filename).equals(hash)) {
             return;
         }
-        file = hashFilename(STAGING_DIR, hash, "add");
-        if (file.exists()) {
+        if (Repository.blobMap.containsKey(filename) &&
+                Repository.blobMap.get(filename).equals(hash)) {
             return;
         }
+        File file = hashFilename(STAGING_DIR, hash, "add");
         writeContents(file, content);
-
-        if (Repository.blobMap.containsKey(filename)) {
-            hashFilename(STAGING_DIR, Repository.blobMap.get(filename), "add").delete();
-        }
         Repository.blobMap.put(filename, hash);
     }
 
@@ -173,43 +175,55 @@ public class Repository {
         String timeString = convertDateToString(new Date(), Repository.TIME_ZONE);
         String hash = sha1(message, Repository.author, timeString);
         String parentHash = Repository.currentHead.hash;
+
+        for (String key : Repository.blobMap.keySet()) {
+            File file = hashFilename(STAGING_DIR, Repository.blobMap.get(key), "add");
+            if (file.exists()) {
+                Repository.committedBlobMap.put(key, Repository.blobMap.get(key));
+            } else {
+                Repository.committedBlobMap.remove(key);
+            }
+        }
+
         Commit commit = new Commit(message, Repository.author, timeString, hash, parentHash,
-                null, Repository.blobMap);
+                null, Repository.committedBlobMap);
         Repository.currentHead = commit;
         Repository.writeHead();
         File file = join(COMMIT_DIR, commit.hash);
         writeObject(file, commit);
-        Repository.blobMap = new HashMap<>();
+        Repository.blobMap.clear();
 
         moveDirectory(join(Repository.STAGING_DIR, "add"), Repository.OBJECTS_DIR);
-        moveDirectory(join(Repository.STAGING_DIR, "remove"), Repository.OBJECTS_DIR);
+        deleteFiles(join(Repository.STAGING_DIR, "remove"), Repository.OBJECTS_DIR);
     }
 
     /**
      * `git rm` command
      */
     public static void rm(String filename) {
-        if (Repository.blobMap.containsKey(filename)) {
-            String hash = Repository.blobMap.get(filename);
+        if (!join(Repository.CWD, filename).exists()) {
+            return;
+        }
+        byte[] content = readContents(join(Repository.CWD, filename));
+        String hash = sha1(content);
+        // staged
+        if (Repository.blobMap.containsKey(filename)
+                && Repository.blobMap.get(filename).equals(hash)) {
             File file = hashFilename(STAGING_DIR, hash, "add");
             file.delete();
             Repository.blobMap.remove(filename);
             return;
         }
-        Commit commit = Repository.currentHead;
-        while (!(commit.blobMap == null)) {
-            if (commit.blobMap.containsKey(filename)) {
-                String hash = commit.blobMap.get(filename);
-                File oriFile = hashFilename(OBJECTS_DIR, hash, null);
-                File desFile = hashFilename(STAGING_DIR, hash, "remove");
-                moveDirectory(oriFile.getParentFile(), desFile.getParentFile());
-                Repository.blobMap.put(filename, hash);
-                return;
-            }
-            String parentHash = commit.parentHash;
-            commit = readObject(join(COMMIT_DIR, parentHash), Commit.class);
+        // tracked
+        if (Repository.committedBlobMap.containsKey(filename)
+                && Repository.committedBlobMap.get(filename).equals(hash)) {
+            File oriFile = hashFilename(OBJECTS_DIR, hash, null);
+            File desFile = hashFilename(STAGING_DIR, hash, "remove");
+            moveFile(oriFile, desFile);
+            Repository.blobMap.put(filename, hash);
+            return;
         }
-        join(CWD, filename).delete();
+        System.out.println("No reason to remove the file");
     }
 
     public static void rm(String[] filenameArray) {
@@ -256,7 +270,7 @@ public class Repository {
     /**
      * `git global-log` command
      */
-    public static void global_log() {
+    public static void globalLog() {
         List<String> stringList = plainFilenamesIn(Repository.COMMIT_DIR);
         StringBuilder builder = new StringBuilder();
         for (String filename : stringList) {
@@ -291,7 +305,7 @@ public class Repository {
         String result = builder.toString();
         if (result.length() == 0) {
             System.out.println("Found no commit with that message");
-            System.exit(0);
+            return;
         }
         System.out.println(result);
     }
@@ -344,6 +358,16 @@ public class Repository {
     /**
      * `git checkout` command
      */
+    public static void checkout(String[] args) {
+        if (args[0].equals("--")) {
+            Repository.checkout(args[2]);
+        } else if (args[1].equals("--")) {
+            Repository.checkout(args[0], args[2]);
+        } else {
+            Repository.checkoutBranch(args[0]);
+        }
+    }
+
     public static void checkout(String commitHash, String filename) {
         Commit commit = readObject(join(Repository.COMMIT_DIR, commitHash), Commit.class);
         if (commit == null) {
@@ -354,13 +378,7 @@ public class Repository {
             System.out.println("File does not exist in that commit");
             return;
         }
-        if (Repository.blobMap.containsKey(filename)) {
-            String hash = Repository.blobMap.remove(filename);
-            File file = hashFilename(STAGING_DIR, hash, "add");
-            restrictedDelete(file);
-            file = hashFilename(STAGING_DIR, hash, "remove");
-            restrictedDelete(file);
-        }
+
         String hash = commit.blobMap.get(filename);
         File file = hashFilename(OBJECTS_DIR, hash, null);
         byte[] content = readContents(file);
@@ -369,6 +387,39 @@ public class Repository {
 
     public static void checkout(String filename) {
         checkout(Repository.currentHead.hash, filename);
+    }
+
+    public static void checkoutBranch(String branch) {
+        if (!join(Repository.HEAEDS_DIR, branch).exists()) {
+            System.out.println("No such branch exists.");
+            return;
+        }
+        if (branch.equals(Repository.currentBranch)) {
+            System.out.println("No need to checkout the current branch.");
+        }
+        if (!Repository.blobMap.isEmpty()) {
+            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            return;
+        }
+        String commitHash = Repository.readHead(branch);
+        Commit commit = readObject(join(Repository.COMMIT_DIR, commitHash), Commit.class);
+        HashMap<String, String> tempBlobMap = (HashMap<String, String>) Repository.committedBlobMap.clone();
+        for (String filename : commit.blobMap.keySet()) {
+            if (tempBlobMap.containsKey(filename)) {
+                tempBlobMap.remove(filename);
+                if (commit.blobMap.get(filename).equals(tempBlobMap.get(filename))) {
+                    continue;
+                }
+            }
+            File file = Repository.hashFilename(Repository.OBJECTS_DIR, commit.blobMap.get(filename), null);
+            byte[] content = readContents(file);
+            writeContents(join(Repository.CWD, filename), content);
+        }
+        for (String filename : tempBlobMap.keySet()) {
+            join(Repository.CWD, filename).delete();
+        }
+        Repository.currentBranch = branch;
+        Repository.currentHead = commit;
     }
 
     /**
@@ -381,7 +432,7 @@ public class Repository {
     /**
      * `git rm-branch` command
      */
-    public static void rm_branch(String branch) {
+    public static void rmBranch(String branch) {
         if (branch.equals(Repository.currentBranch)) {
             System.out.println("Cannot remove the current branch");
             return;
@@ -392,5 +443,13 @@ public class Repository {
             return;
         }
         file.delete();
+    }
+
+    public static String readHead(String branch) {
+        return readContentsAsString(join(Repository.HEAEDS_DIR, branch));
+    }
+
+    public static void reset(String commitHash) {
+
     }
 }

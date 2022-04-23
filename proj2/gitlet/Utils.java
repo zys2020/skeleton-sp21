@@ -28,7 +28,7 @@ import org.apache.commons.io.FileUtils;
  * Give this file a good read as it provides several useful utility functions
  * to save you some time.
  *
- * @author P. N. Hilfinger
+ * @author P. N. Hilfinger, Yuansong Zhang
  */
 class Utils {
 
@@ -200,6 +200,17 @@ class Utils {
             };
 
     /**
+     * Filter out all but plain directory.
+     */
+    private static final FilenameFilter PLAIN_DIRECTORY =
+            new FilenameFilter() {
+                @Override
+                public boolean accept(File dir, String name) {
+                    return new File(dir, name).isDirectory();
+                }
+            };
+
+    /**
      * Returns a list of the names of all plain files in the directory DIR, in
      * lexicographic order as Java Strings.  Returns null if DIR does
      * not denote a directory.
@@ -338,6 +349,26 @@ class Utils {
     }
 
     /**
+     * move the file "oriFile" to the file "desFile"
+     */
+    static void moveFile(File oriFile, File desFile) {
+        if (!oriFile.exists()) {
+            return;
+        }
+        try {
+            if (!desFile.getParentFile().exists()) {
+                desFile.getParentFile().mkdirs();
+//                System.out.println("Create new directory `" + desDir.getParent() + "`");
+            }
+            Files.move(oriFile.toPath(), desFile.toPath());
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+            throw new RuntimeException("moving failed");
+        }
+
+    }
+
+    /**
      * delete "dir" directory with the constraint that Repository.CWD cannot be deleted.
      */
     static void deleteDirectory(File dir) {
@@ -359,11 +390,36 @@ class Utils {
         }
     }
 
+    /**
+     * delete files in the "desDir" directory that also exist in the "oriDir" directory.
+     * and the search depth is two.
+     */
+    static void deleteFiles(File oriDir, File desDir) {
+        if (!oriDir.exists() || !desDir.exists()) {
+            return;
+        }
+        String[] indexDirs = oriDir.list(PLAIN_DIRECTORY);
+        for (String index : indexDirs) {
+            String[] filenames = new File(oriDir, index).list(PLAIN_FILES);
+            for (String filename : filenames) {
+                File path = new File(desDir, index);
+                File file = new File(path, filename);
+                if (file.exists()) {
+                    file.delete();
+                    path = new File(oriDir, index);
+                    file = new File(path, filename);
+                    file.delete();
+                }
+            }
+        }
+    }
+
     public static void main(String[] args) {
-        Date date = convertStringToDate("2022-04-14 12:00:00 +0000");
-        System.out.println(date);
-        String timeString = convertDateToString(new Date());
-        System.out.println(timeString);
-        deleteDirectory(Repository.CWD);
+//        Date date = convertStringToDate("2022-04-14 12:00:00 +0000");
+//        System.out.println(date);
+//        String timeString = convertDateToString(new Date());
+//        System.out.println(timeString);
+//        deleteDirectory(Repository.CWD);
+        deleteFiles(join(Repository.STAGING_DIR, "add"), join(Repository.STAGING_DIR, "add"));
     }
 }
