@@ -300,6 +300,119 @@ public class CommandTest {
     }
 
     @Test
+    public void resetTest() {
+        Repository.clear();
+        Repository.init();
+        String filename = "file1.txt";
+        String content = "file1";
+        writeContents(join(Repository.CWD, filename), content);
+        Repository.add(filename);
+        Repository.commit("Add " + filename);
+        String commitHash = Repository.currentHead.hash;
+
+        content = "file2";
+        writeContents(join(Repository.CWD, filename), content);
+        Repository.add(filename);
+        Repository.commit("Modify " + filename);
+
+        content = "file3";
+        writeContents(join(Repository.CWD, filename), content);
+        Repository.add(filename);
+        Repository.commit("Modify " + filename);
+
+        Repository.reset(commitHash);
+        assertEquals("file1", readContentsAsString(join(Repository.CWD, filename)));
+    }
+
+    @Test
+    public void mergeTest() {
+        Repository.clear();
+        Repository.init();
+
+        // The file does not exist in both the current branch and given branch.
+        String filename = "file1.txt";
+        String content = "file1";
+        writeContents(join(Repository.CWD, filename), content);
+        Repository.add(filename);
+        Repository.commit("Add " + filename);
+        String filename1 = filename;
+        String content1 = content;
+
+        // The file exists in the current branch but not in the given branch.
+        filename = "file2.txt";
+        content = "file2";
+        writeContents(join(Repository.CWD, filename), content);
+        Repository.add(filename);
+        Repository.commit("Add " + filename);
+        String filename2 = filename;
+        String content2 = content;
+
+        // The file exists in the given branch but not in the current branch.
+        filename = "file3.txt";
+        content = "file3";
+        writeContents(join(Repository.CWD, filename), content);
+        Repository.add(filename);
+        Repository.commit("Add " + filename);
+        String filename3 = filename;
+        String content3 = content;
+
+        // The file exists in both the current branch and given branch.
+        filename = "file4.txt";
+        content = "file4";
+        writeContents(join(Repository.CWD, filename), content);
+        Repository.add(filename);
+        Repository.commit("Add " + filename);
+        String filename4 = filename;
+        String content4 = content;
+
+        // given branch
+        String branch = "dev";
+        Repository.branch(branch);
+        Repository.checkoutBranch(branch);
+
+        Repository.rm(filename1);
+        Repository.commit("Remove " + filename1);
+
+        Repository.rm(filename2);
+        Repository.commit("Remove " + filename2);
+
+        writeContents(join(Repository.CWD, filename3), filename3);
+        Repository.add(filename3);
+        Repository.commit("Modify " + filename3);
+
+        writeContents(join(Repository.CWD, filename4), filename4);
+        Repository.add(filename4);
+        Repository.commit("Modify " + filename4);
+
+//        Repository.log();
+
+        // current branch
+        Repository.checkoutBranch("main");
+
+        Repository.rm(filename1);
+        Repository.commit("Remove " + filename1);
+
+        writeContents(join(Repository.CWD, filename2), filename2);
+        Repository.add(filename2);
+        Repository.commit("Modify " + filename2);
+
+        Repository.rm(filename3);
+        Repository.commit("Remove " + filename3);
+
+        writeContents(join(Repository.CWD, filename4), filename4);
+        Repository.add(filename4);
+        Repository.commit("Modify " + filename4);
+
+//        Repository.log();
+
+        // merge given branch whose existed files are the same with current branch.
+        Repository.merge(branch);
+        assertFalse(join(Repository.CWD, filename1).exists());
+        assertEquals(readContentsAsString(join(Repository.CWD, filename2)), filename2);
+        assertNotEquals(readContentsAsString(join(Repository.CWD, filename3)), filename3);
+    }
+
+    @Test
     public void integrationTest() {
         // add
         HashMap<String, String> map = new HashMap<>();

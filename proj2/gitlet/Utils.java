@@ -365,7 +365,25 @@ class Utils {
             ioException.printStackTrace();
             throw new RuntimeException("moving failed");
         }
+    }
 
+    /**
+     * copy the file "oriFile" to the file "desFile"
+     */
+    static void copyFile(File oriFile, File desFile) {
+        if (!oriFile.exists()) {
+            return;
+        }
+        try {
+            if (!desFile.getParentFile().exists()) {
+                desFile.getParentFile().mkdirs();
+//                System.out.println("Create new directory `" + desDir.getParent() + "`");
+            }
+            Files.copy(oriFile.toPath(), desFile.toPath());
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+            throw new RuntimeException("copy failed");
+        }
     }
 
     /**

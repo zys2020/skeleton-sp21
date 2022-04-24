@@ -164,6 +164,10 @@ public class Repository {
      * `git commit` command
      */
     public static void commit(String message) {
+        Repository.commit(message, null);
+    }
+
+    public static void commit(String message, String mergedParentHash) {
         if (Repository.blobMap.isEmpty()) {
             System.out.println("No changes added to the commit");
             return;
@@ -186,7 +190,7 @@ public class Repository {
         }
 
         Commit commit = new Commit(message, Repository.author, timeString, hash, parentHash,
-                null, Repository.committedBlobMap);
+                mergedParentHash, Repository.committedBlobMap);
         Repository.currentHead = commit;
         Repository.writeHead();
         File file = join(COMMIT_DIR, commit.hash);
@@ -194,7 +198,8 @@ public class Repository {
         Repository.blobMap.clear();
 
         moveDirectory(join(Repository.STAGING_DIR, "add"), Repository.OBJECTS_DIR);
-        deleteFiles(join(Repository.STAGING_DIR, "remove"), Repository.OBJECTS_DIR);
+//        deleteFiles(join(Repository.STAGING_DIR, "remove"), Repository.OBJECTS_DIR);
+        deleteDirectory(join(Repository.STAGING_DIR, "remove"));
     }
 
     /**
@@ -206,7 +211,7 @@ public class Repository {
         }
         byte[] content = readContents(join(Repository.CWD, filename));
         String hash = sha1(content);
-        // staged
+        // staged files
         if (Repository.blobMap.containsKey(filename)
                 && Repository.blobMap.get(filename).equals(hash)) {
             File file = hashFilename(STAGING_DIR, hash, "add");
@@ -214,12 +219,13 @@ public class Repository {
             Repository.blobMap.remove(filename);
             return;
         }
-        // tracked
+        // tracked files
         if (Repository.committedBlobMap.containsKey(filename)
                 && Repository.committedBlobMap.get(filename).equals(hash)) {
             File oriFile = hashFilename(OBJECTS_DIR, hash, null);
             File desFile = hashFilename(STAGING_DIR, hash, "remove");
-            moveFile(oriFile, desFile);
+            copyFile(oriFile, desFile);
+            restrictedDelete(join(Repository.CWD, filename));
             Repository.blobMap.put(filename, hash);
             return;
         }
@@ -402,24 +408,26 @@ public class Repository {
             return;
         }
         String commitHash = Repository.readHead(branch);
-        Commit commit = readObject(join(Repository.COMMIT_DIR, commitHash), Commit.class);
-        HashMap<String, String> tempBlobMap = (HashMap<String, String>) Repository.committedBlobMap.clone();
-        for (String filename : commit.blobMap.keySet()) {
-            if (tempBlobMap.containsKey(filename)) {
-                tempBlobMap.remove(filename);
-                if (commit.blobMap.get(filename).equals(tempBlobMap.get(filename))) {
+        Commit givenCommit = readObject(join(Repository.COMMIT_DIR, commitHash), Commit.class);
+        HashMap<String, String> currentBlobMap = (HashMap<String, String>) Repository.committedBlobMap.clone();
+        for (String filename : givenCommit.blobMap.keySet()) {
+            // The file exists in the current branch.
+            if (currentBlobMap.containsKey(filename)) {
+                if (givenCommit.blobMap.get(filename).equals(currentBlobMap.get(filename))) {
+                    currentBlobMap.remove(filename);
                     continue;
                 }
+                currentBlobMap.remove(filename);
             }
-            File file = Repository.hashFilename(Repository.OBJECTS_DIR, commit.blobMap.get(filename), null);
-            byte[] content = readContents(file);
-            writeContents(join(Repository.CWD, filename), content);
+            restoreFile(filename, givenCommit.blobMap.get(filename));
         }
-        for (String filename : tempBlobMap.keySet()) {
+        // The file exists in the current but not in the given branch.
+        for (String filename : currentBlobMap.keySet()) {
             join(Repository.CWD, filename).delete();
         }
         Repository.currentBranch = branch;
-        Repository.currentHead = commit;
+        Repository.currentHead = givenCommit;
+        Repository.committedBlobMap = givenCommit.blobMap;
     }
 
     /**
@@ -449,7 +457,281 @@ public class Repository {
         return readContentsAsString(join(Repository.HEAEDS_DIR, branch));
     }
 
+    /**
+     * `git reset` command
+     */
     public static void reset(String commitHash) {
+        if (!Repository.blobMap.isEmpty()) {
+            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            return;
+        }
+        if (!join(Repository.COMMIT_DIR, commitHash).exists()) {
+            System.out.println("No commit with that id exists");
+            return;
+        }
+        Commit commit = readObject(join(Repository.COMMIT_DIR, commitHash), Commit.class);
+        HashMap<String, String> tempBlobMap = (HashMap<String, String>) Repository.committedBlobMap.clone();
+        for (String filename : commit.blobMap.keySet()) {
+            if (tempBlobMap.containsKey(filename)) {
+                tempBlobMap.remove(filename);
+                if (commit.blobMap.get(filename).equals(tempBlobMap.get(filename))) {
+                    continue;
+                }
+            }
+            File file = Repository.hashFilename(Repository.OBJECTS_DIR, commit.blobMap.get(filename), null);
+            byte[] content = readContents(file);
+            writeContents(join(Repository.CWD, filename), content);
+        }
+        for (String filename : tempBlobMap.keySet()) {
+            join(Repository.CWD, filename).delete();
+        }
+        Repository.currentHead = commit;
+        Repository.committedBlobMap = commit.blobMap;
+    }
 
+    /**
+     * `git merge`
+     */
+    public static void merge(String branch) {
+        if (!join(Repository.HEAEDS_DIR, branch).exists()) {
+            System.out.println("A branch with that name does not exist.");
+            return;
+        }
+        if (branch.equals(Repository.currentBranch)) {
+            System.out.println("Cannot merge a branch with itself.");
+        }
+        if (!Repository.blobMap.isEmpty()) {
+            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            return;
+        }
+
+        Commit currentCommit = Repository.currentHead;
+        Commit givenCommit = readObject(join(Repository.COMMIT_DIR, Repository.readHead(branch)), Commit.class);
+        // todo
+        Commit splitCommit = Repository.findSplitCommit(currentCommit, givenCommit);
+        if (splitCommit.hash.equals(givenCommit.hash)) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            return;
+        }
+        if (splitCommit.hash.equals(currentCommit.hash)) {
+            Repository.checkoutBranch(branch);
+            System.out.println("Given branch fast-forward.");
+            return;
+        }
+
+        HashMap<String, String> currentBlobMap = (HashMap<String, String>) currentCommit.blobMap.clone();
+        HashMap<String, String> givenBlobMap = (HashMap<String, String>) givenCommit.blobMap.clone();
+
+        boolean conflict = false;
+
+        for (String filename : splitCommit.blobMap.keySet()) {
+            // The file does not exist in both the current branch and given branch.
+            if (!currentBlobMap.containsKey(filename) && !givenBlobMap.containsKey(filename)) {
+                currentBlobMap.remove(filename);
+                givenBlobMap.remove(filename);
+                continue;
+            }
+
+            // The file exists in the current branch but not in the given branch.
+            if (currentBlobMap.containsKey(filename) && !givenBlobMap.containsKey(filename)) {
+                if (splitCommit.blobMap.get(filename).equals(currentBlobMap.get(filename))) {
+                    // 6. Any files present at the split point, unmodified in the current branch, and absent
+                    // in the given branch should be removed (and untracked).
+                    join(Repository.CWD, filename).delete();
+                    Repository.blobMap.remove(filename);
+                    Repository.stageFile(filename, currentBlobMap.get(filename), "remove");
+                    continue;
+                }
+
+                // 8. Any files modified in different ways in the current branch and in the given branch
+                // are in conflict.
+                File currentFile = Repository.hashFilename(Repository.OBJECTS_DIR, currentBlobMap.get(filename), null);
+                String currentContent = readContentsAsString(currentFile);
+                String givenContent = null;
+                Repository.conflict(filename, currentContent, givenContent);
+                conflict = true;
+
+                currentBlobMap.remove(filename);
+                givenBlobMap.remove(filename);
+                continue;
+            }
+
+            // The file exists in the given branch but not in the current branch.
+            if (!currentBlobMap.containsKey(filename) && givenBlobMap.containsKey(filename)) {
+                // 7. Any files present at the split point, unmodified in the given branch, and absent
+                // in the current branch should remain absent.
+                if (splitCommit.blobMap.get(filename).equals(givenBlobMap.get(filename))) {
+                    givenBlobMap.remove(filename);
+                    continue;
+                }
+
+                // 8. Any files modified in different ways in the current branch and in the given branch
+                // are in conflict.
+                String currentContent = null;
+                File givenFile = Repository.hashFilename(Repository.OBJECTS_DIR, givenBlobMap.get(filename), null);
+                String givenContent = readContentsAsString(givenFile);
+                Repository.conflict(filename, currentContent, givenContent);
+                conflict = true;
+
+                currentBlobMap.remove(filename);
+                givenBlobMap.remove(filename);
+                continue;
+            }
+
+            // The file exists in both the current branch and given branch.
+            if (currentBlobMap.containsKey(filename) && givenBlobMap.containsKey(filename)) {
+                // The file in the current branch is the same with that in the given branch.
+                if (currentBlobMap.get(filename).equals(givenBlobMap.get(filename))) {
+                    // 3. Any files that have been modified (updated or removed) in both the current and given
+                    // branch in the same way are left unchanged by the merge.
+                    currentBlobMap.remove(filename);
+                    givenBlobMap.remove(filename);
+                    continue;
+                }
+
+                // The file in the current branch is different with that in the given branch.
+                if (!currentBlobMap.get(filename).equals(givenBlobMap.get(filename))) {
+                    // The file in the current branch is the same with that in the split point.
+                    if (splitCommit.blobMap.get(filename).equals(currentBlobMap.get(filename))) {
+                        // 1. Any files that have been modified in the given branch since the split point,
+                        // but not modified in the current branch since the split point,
+                        // should be changed to their versions in the given branch.
+                        String fileHash = currentBlobMap.get(filename);
+                        Repository.restoreFile(filename, fileHash);
+                        Repository.stageFile(filename, fileHash, "add");
+                        Repository.blobMap.put(filename, fileHash);
+
+                        currentBlobMap.remove(filename);
+                        givenBlobMap.remove(filename);
+                        continue;
+                    }
+
+                    // The file in the given branch is the same with that in the split point.
+                    if (splitCommit.blobMap.get(filename).equals(givenBlobMap.get(filename))) {
+                        // 2. Any files that have been modified in the current branch but not in the given branch
+                        // since the spilt point should stay as they are.
+                        currentBlobMap.remove(filename);
+                        givenBlobMap.remove(filename);
+                        continue;
+                    }
+
+                    // The file in both the current and given branch is different with that in the given branch.
+                    if ((!currentBlobMap.get(filename).equals(currentBlobMap.get(filename)))
+                            && !currentBlobMap.get(filename).equals(givenBlobMap.get(filename))) {
+                        // 8. Any files modified in different ways in the current branch and in the given branch
+                        // are in conflict.
+                        File currentFile = Repository.hashFilename(Repository.OBJECTS_DIR, currentBlobMap.get(filename), null);
+                        String currentContent = readContentsAsString(currentFile);
+                        File givenFile = Repository.hashFilename(Repository.OBJECTS_DIR, givenBlobMap.get(filename), null);
+                        String givenContent = readContentsAsString(givenFile);
+                        Repository.conflict(filename, currentContent, givenContent);
+                        conflict = true;
+
+                        currentBlobMap.remove(filename);
+                        givenBlobMap.remove(filename);
+                        continue;
+                    }
+                }
+            }
+        }
+
+        for (String filename : currentBlobMap.keySet()) {
+            // 4. Any files that were not present at the split point and are present only in the current
+            // branch should remain as they are.
+            if (!givenBlobMap.containsKey(filename)) {
+//                currentBlobMap.remove(filename);
+                givenBlobMap.remove(filename);
+                continue;
+            }
+            // 3. Any files that have been modified (updated or removed) in both the current and given
+            // branch in the same way are left unchanged by the merge.
+            else if (currentBlobMap.get(filename).equals(givenBlobMap.get(filename))) {
+//                currentBlobMap.remove(filename);
+                givenBlobMap.remove(filename);
+                continue;
+            }
+            // 8. Any files modified in different ways in the current branch and in the given branch
+            // are in conflict.
+            else {
+                File currentFile = Repository.hashFilename(Repository.OBJECTS_DIR, currentBlobMap.get(filename), null);
+                String currentContent = readContentsAsString(currentFile);
+                File givenFile = Repository.hashFilename(Repository.OBJECTS_DIR, givenBlobMap.get(filename), null);
+                String givenContent = readContentsAsString(givenFile);
+                Repository.conflict(filename, currentContent, givenContent);
+                conflict = true;
+
+//                currentBlobMap.remove(filename);
+                givenBlobMap.remove(filename);
+                continue;
+            }
+        }
+
+        // 5. Any files that were not present at the split point and are present only in the give branch
+        // should be checked out and staged.
+        for (String filename : givenBlobMap.keySet()) {
+            String fileHash = givenBlobMap.get(filename);
+            Repository.restoreFile(filename, fileHash);
+            Repository.stageFile(filename, fileHash, "add");
+            Repository.blobMap.put(filename, fileHash);
+        }
+
+        String message = "Merged " + branch + "into " + Repository.currentBranch + ".";
+        Repository.commit(message, givenCommit.hash);
+        if (conflict) {
+            System.out.println("Encountered a merge conflict.");
+        }
+    }
+
+    /**
+     * Write the conflict content of the file in both current and given branch.
+     */
+    private static void conflict(String filename, String currentContent, String givenContent) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("<<<<<<< HEAD").append('\n');
+        builder.append(currentContent);
+
+        builder.append("=======").append('\n');
+        builder.append(givenContent);
+        builder.append(">>>>>>>").append('\n');
+
+        writeContents(join(Repository.CWD, filename), builder.toString());
+    }
+
+    /**
+     * Return the split point that is the latest common ancestor of the current branch and given branch.
+     * When the timestamps of commits are the same, the set of commit has to be traversed.
+     */
+    private static Commit findSplitCommit(Commit currentCommit, Commit givenCommit) {
+        Commit tempCommit = givenCommit;
+        while (currentCommit != null) {
+            while (tempCommit != null) {
+                if (currentCommit.hash.equals(tempCommit.hash)) {
+                    return currentCommit;
+                }
+                tempCommit = readObject(join(Repository.COMMIT_DIR, tempCommit.parentHash), Commit.class);
+            }
+            currentCommit = readObject(join(Repository.COMMIT_DIR, currentCommit.parentHash), Commit.class);
+        }
+        return null;
+    }
+
+    /**
+     * Restore a file with a specific version from the directory '.gitlet/objects'
+     * to the current working directory.
+     */
+    private static void restoreFile(String filename, String fileHash) {
+        File file = Repository.hashFilename(Repository.OBJECTS_DIR, fileHash, null);
+        byte[] content = readContents(file);
+        writeContents(join(Repository.CWD, filename), content);
+    }
+
+    /**
+     * Save a file with a specific version from the current working directory
+     * to the directory '.gitlet/stagingArea'.
+     */
+    private static void stageFile(String filename, String fileHash, String mode) {
+        byte[] content = readContents(join(Repository.CWD, filename));
+        File file = hashFilename(STAGING_DIR, fileHash, mode);
+        writeContents(file, content);
     }
 }

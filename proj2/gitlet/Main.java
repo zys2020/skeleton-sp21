@@ -55,8 +55,10 @@ public class Main {
                 Repository.rmBranch(args[1]);
                 break;
             case "reset":
+                Repository.reset(args[1]);
                 break;
             case "merge":
+                Repository.merge(args[1]);
                 break;
 
         }
