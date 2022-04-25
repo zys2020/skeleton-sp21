@@ -331,7 +331,7 @@ public class CommandTest {
 
         // The file does not exist in both the current branch and given branch.
         String filename = "file1.txt";
-        String content = "file1";
+        String content = "file1\n";
         writeContents(join(Repository.CWD, filename), content);
         Repository.add(filename);
         Repository.commit("Add " + filename);
@@ -340,7 +340,7 @@ public class CommandTest {
 
         // The file exists in the current branch but not in the given branch.
         filename = "file2.txt";
-        content = "file2";
+        content = "file2\n";
         writeContents(join(Repository.CWD, filename), content);
         Repository.add(filename);
         Repository.commit("Add " + filename);
@@ -349,7 +349,7 @@ public class CommandTest {
 
         // The file exists in the given branch but not in the current branch.
         filename = "file3.txt";
-        content = "file3";
+        content = "file3\n";
         writeContents(join(Repository.CWD, filename), content);
         Repository.add(filename);
         Repository.commit("Add " + filename);
@@ -358,7 +358,7 @@ public class CommandTest {
 
         // The file exists in both the current branch and given branch.
         filename = "file4.txt";
-        content = "file4";
+        content = "file4\n";
         writeContents(join(Repository.CWD, filename), content);
         Repository.add(filename);
         Repository.commit("Add " + filename);
@@ -384,8 +384,6 @@ public class CommandTest {
         Repository.add(filename4);
         Repository.commit("Modify " + filename4);
 
-//        Repository.log();
-
         // current branch
         Repository.checkoutBranch("main");
 
@@ -403,22 +401,17 @@ public class CommandTest {
         Repository.add(filename4);
         Repository.commit("Modify " + filename4);
 
-//        Repository.log();
-
         // merge given branch whose existed files are the same with current branch.
         Repository.merge(branch);
         assertFalse(join(Repository.CWD, filename1).exists());
-        assertEquals(readContentsAsString(join(Repository.CWD, filename2)), filename2);
-        assertNotEquals(readContentsAsString(join(Repository.CWD, filename3)), filename3);
+        assertNotEquals(filename2, readContentsAsString(join(Repository.CWD, filename2)));
+        assertNotEquals(filename3, readContentsAsString(join(Repository.CWD, filename3)));
+        assertEquals(filename4, readContentsAsString(join(Repository.CWD, filename4)));
     }
 
     @Test
     public void integrationTest() {
-        // add
-        HashMap<String, String> map = new HashMap<>();
-        map.put("a", "a");
-        HashMap<String, String> map1 = (HashMap<String, String>) map.clone();
-
+        // todo
     }
 
 }

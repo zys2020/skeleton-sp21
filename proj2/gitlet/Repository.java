@@ -177,7 +177,6 @@ public class Repository {
             return;
         }
         String timeString = convertDateToString(new Date(), Repository.TIME_ZONE);
-        String hash = sha1(message, Repository.author, timeString);
         String parentHash = Repository.currentHead.hash;
 
         for (String key : Repository.blobMap.keySet()) {
@@ -189,6 +188,7 @@ public class Repository {
             }
         }
 
+        String hash = sha1(message, Repository.author, timeString, parentHash, mergedParentHash);
         Commit commit = new Commit(message, Repository.author, timeString, hash, parentHash,
                 mergedParentHash, Repository.committedBlobMap);
         Repository.currentHead = commit;
@@ -507,7 +507,6 @@ public class Repository {
 
         Commit currentCommit = Repository.currentHead;
         Commit givenCommit = readObject(join(Repository.COMMIT_DIR, Repository.readHead(branch)), Commit.class);
-        // todo
         Commit splitCommit = Repository.findSplitCommit(currentCommit, givenCommit);
         if (splitCommit.hash.equals(givenCommit.hash)) {
             System.out.println("Given branch is an ancestor of the current branch.");
@@ -547,7 +546,7 @@ public class Repository {
                 // are in conflict.
                 File currentFile = Repository.hashFilename(Repository.OBJECTS_DIR, currentBlobMap.get(filename), null);
                 String currentContent = readContentsAsString(currentFile);
-                String givenContent = null;
+                String givenContent = "";
                 Repository.conflict(filename, currentContent, givenContent);
                 conflict = true;
 
@@ -567,7 +566,7 @@ public class Repository {
 
                 // 8. Any files modified in different ways in the current branch and in the given branch
                 // are in conflict.
-                String currentContent = null;
+                String currentContent = "";
                 File givenFile = Repository.hashFilename(Repository.OBJECTS_DIR, givenBlobMap.get(filename), null);
                 String givenContent = readContentsAsString(givenFile);
                 Repository.conflict(filename, currentContent, givenContent);
@@ -702,15 +701,28 @@ public class Repository {
      * When the timestamps of commits are the same, the set of commit has to be traversed.
      */
     private static Commit findSplitCommit(Commit currentCommit, Commit givenCommit) {
-        Commit tempCommit = givenCommit;
+        Commit tempCommit;
         while (currentCommit != null) {
+//            System.out.println("XXXXXXXXXXXXXXXXXXXXXXX");
+//            System.out.println("currentCommit" + currentCommit.hash);
+            tempCommit = givenCommit;
             while (tempCommit != null) {
+//                System.out.println("\ttempCommit" + tempCommit.hash);
                 if (currentCommit.hash.equals(tempCommit.hash)) {
                     return currentCommit;
                 }
-                tempCommit = readObject(join(Repository.COMMIT_DIR, tempCommit.parentHash), Commit.class);
+                if (tempCommit.parentHash != null && join(Repository.COMMIT_DIR, tempCommit.parentHash).exists()) {
+                    tempCommit = readObject(join(Repository.COMMIT_DIR, tempCommit.parentHash), Commit.class);
+                } else {
+                    tempCommit = null;
+                }
+
             }
-            currentCommit = readObject(join(Repository.COMMIT_DIR, currentCommit.parentHash), Commit.class);
+            if (currentCommit.parentHash != null && join(Repository.COMMIT_DIR, currentCommit.parentHash).exists()) {
+                currentCommit = readObject(join(Repository.COMMIT_DIR, currentCommit.parentHash), Commit.class);
+            } else {
+                currentCommit = null;
+            }
         }
         return null;
     }
@@ -733,5 +745,13 @@ public class Repository {
         byte[] content = readContents(join(Repository.CWD, filename));
         File file = hashFilename(STAGING_DIR, fileHash, mode);
         writeContents(file, content);
+    }
+
+    /**
+     * Print helpful information on how to use gitlet.
+     */
+    public static void help() {
+        String info = "use args such as init, add, commit, rm, checkout, log, global-log, reset, merge.";
+        System.out.println(info);
     }
 }
