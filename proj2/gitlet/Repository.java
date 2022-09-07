@@ -128,11 +128,18 @@ public class Repository {
         String hash = sha1(content);
         if (Repository.committedBlobMap.containsKey(filename) &&
                 Repository.committedBlobMap.get(filename).equals(hash)) {
+            if (Repository.blobMap.containsKey(filename)) {
+                Repository.hashFilename(Repository.STAGING_DIR, Repository.blobMap.get(filename), "add").delete();
+                Repository.hashFilename(Repository.STAGING_DIR, Repository.blobMap.get(filename), "remove").delete();
+            }
             return;
         }
-        if (Repository.blobMap.containsKey(filename) &&
-                Repository.blobMap.get(filename).equals(hash)) {
-            return;
+        if (Repository.blobMap.containsKey(filename)) {
+            if (Repository.blobMap.get(filename).equals(hash)) {
+                return;
+            }
+            Repository.hashFilename(Repository.STAGING_DIR, Repository.blobMap.get(filename), "add").delete();
+            Repository.hashFilename(Repository.STAGING_DIR, Repository.blobMap.get(filename), "remove").delete();
         }
         File file = hashFilename(STAGING_DIR, hash, "add");
         writeContents(file, content);

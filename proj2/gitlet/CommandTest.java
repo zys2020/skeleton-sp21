@@ -3,6 +3,10 @@ package gitlet;
 import org.junit.Test;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import static org.junit.Assert.*;
@@ -411,7 +415,85 @@ public class CommandTest {
 
     @Test
     public void integrationTest() {
-        // todo
+//        // gitlet init section
+//        Repository.clear();
+//        initSection();
+//        // gitlet add section
+//        addSection();
+        // gitlet commit section
+        Repository.clear();
+        initSection();
+        commitSection();
     }
 
+    private static void initSection() {
+        String[] args = new String[]{"init"};
+        Main.main(args);
+        assertEquals("main", Repository.currentBranch);
+        assertTrue(Repository.GITLET_DIR.exists());
+        Main.main(args);
+    }
+
+    private static void addSection() {
+        String[] args;
+        // gitlet add section
+        String filename = "file1.txt";
+        String content = "file1\n";
+        writeContents(join(Repository.CWD, filename), content);
+        args = new String[]{"add", filename};
+        Main.main(args);
+        String hash = sha1(content);
+        File file = Repository.hashFilename(Repository.STAGING_DIR, hash, "add");
+        assertEquals(content, readContentsAsString(file));
+
+        content = "overwrite file1\n";
+        writeContents(join(Repository.CWD, filename), content);
+        Main.main(args);
+        hash = sha1(content);
+        file = Repository.hashFilename(Repository.STAGING_DIR, hash, "add");
+        assertEquals(content, readContentsAsString(file));
+
+        args = new String[]{"commit", "add test"};
+        Main.main(args);
+        args = new String[]{"add", filename};
+        Main.main(args);
+        assertFalse(file.exists());
+
+        content = "overwrite file1 again\n";
+        writeContents(join(Repository.CWD, filename), content);
+        Main.main(args);
+        hash = sha1(content);
+        file = Repository.hashFilename(Repository.STAGING_DIR, hash, "add");
+        assertTrue(file.exists());
+        content = "overwrite file1\n";
+        writeContents(join(Repository.CWD, filename), content);
+        Main.main(args);
+        assertFalse(file.exists());
+
+        args = new String[]{"rm", filename};
+        Main.main(args);
+        content = "overwrite file1\n";
+        hash = sha1(content);
+        file = Repository.hashFilename(Repository.STAGING_DIR, hash, "remove");
+        assertTrue(file.exists());
+
+        args = new String[]{"add", "file.nonexistent"};
+        Main.main(args);
+    }
+
+    private static void commitSection() {
+        String[] args;
+        // gitlet commit section
+        String filename = "file1.txt";
+        String content = "file1\n";
+        writeContents(join(Repository.CWD, filename), content);
+        args = new String[]{"add", filename};
+        Main.main(args);
+
+        args = new String[]{"commit", "add test"};
+        Main.main(args);
+        File file = Repository.STAGING_DIR;
+        assertEquals(0, file.list().length);
+        // todo, too many things
+    }
 }
