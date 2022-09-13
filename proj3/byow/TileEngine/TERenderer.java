@@ -17,6 +17,7 @@ public class TERenderer {
     private int height;
     private int xOffset;
     private int yOffset;
+    public boolean init = false;
 
     /**
      * Same functionality as the other initialization method. The only difference is that the xOff
@@ -42,6 +43,7 @@ public class TERenderer {
 
         StdDraw.enableDoubleBuffering();
         StdDraw.show();
+        this.init = true;
     }
 
     /**

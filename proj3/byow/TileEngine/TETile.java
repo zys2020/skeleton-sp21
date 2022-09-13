@@ -83,6 +83,7 @@ public class TETile {
      */
     public void draw(double x, double y) {
         if (filepath != null) {
+            StdDraw.picture(x + 0.5, y + 0.5, filepath);
             try {
                 StdDraw.picture(x + 0.5, y + 0.5, filepath);
                 return;

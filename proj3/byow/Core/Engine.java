@@ -1,50 +1,135 @@
 package byow.Core;
 
+import byow.InputDemo.InputSource;
+import byow.InputDemo.KeyboardInputSource;
 import byow.TileEngine.TERenderer;
 import byow.TileEngine.TETile;
 import byow.TileEngine.Tileset;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 public class Engine {
-    TERenderer ter = new TERenderer();
+    public TERenderer ter = new TERenderer();
+
     /* Feel free to change the width and height. */
-    public static final int WIDTH = 80;
-    public static final int HEIGHT = 30;
-    // private static final long SEED = System.currentTimeMillis();
-//    private static final long SEED = 2873123;
-//    private static final long SEED = 1;
-//    private static final long SEED = 2;
-    private static final long SEED = 3;
-//    private static final long SEED = 4;
-//    private static final long SEED = 5;
+    public static final int WIDTH = 16 * 4;
+    public static final int HEIGHT = 9 * 4;
+    private static final long SEED = System.currentTimeMillis();
     public static final Random RANDOM = new Random(SEED);
+    public static final String gameFilename = "game.txt";
+
+    public int avatar_x = -1;
+    public int avatar_y = -1;
 
     /**
      * Method used for exploring a fresh world. This method should handle all inputs,
      * including inputs from the main menu.
      */
     public void interactWithKeyboard() {
-        // initialize the tile rendering engine with a window of size width x height
-        TERenderer ter = new TERenderer();
-        int n = 4;
-        int windowWidth = 16 * n;
-        int windowHeight = 9 * n;
-        ter.initialize(windowWidth, windowHeight);
-        // initialize tiles
-        TETile[][] world = new TETile[windowWidth][windowHeight];
-        for (int x = 0; x < world.length; x += 1) {
-            for (int y = 0; y < world[0].length; y += 1) {
-                world[x][y] = Tileset.NOTHING;
+        InputSource inputSource = new KeyboardInputSource();
+        int totalCharacters = 0;
+        TETile[][] world = new TETile[WIDTH][HEIGHT];
+        int avatar_x = -1;
+        int avatar_y = -1;
+
+        while (inputSource.possibleNextInput()) {
+            totalCharacters += 1;
+            char c = inputSource.getNextKey();
+            if (c == 'N') {
+                System.out.println("Create New World.");
+                world = interactWithInputString("XXXX");
+            } else if (c == 'W') {
+                avatar_y = this.avatar_y + 1;
+                avatar_x = this.avatar_x;
+
+            } else if (c == 'S') {
+                avatar_y = this.avatar_y - 1;
+                avatar_x = this.avatar_x;
+
+            } else if (c == 'A') {
+                avatar_x = this.avatar_x - 1;
+                avatar_y = this.avatar_y;
+
+            } else if (c == 'D') {
+                avatar_x = this.avatar_x + 1;
+                avatar_y = this.avatar_y;
+
+            } else if (c == 'L') {
+                int[] avatar = this.loadGame(world);
+                if (avatar == null) {
+                    continue;
+                }
+                avatar_x = avatar[0];
+                avatar_y = avatar[1];
+            } else if (c == 'Q') {
+                this.saveGame(world);
+                System.out.println("Quit and Save Game...");
+                break;
             }
+            this.render(world, avatar_x, avatar_y);
         }
-        int init_x = RANDOM.nextInt(windowWidth - 2) + 1;
-        int init_y = RANDOM.nextInt(windowHeight - 2) + 1;
-//        generateSpanningTree(world, init_x, init_y);
-        generateRoom(world, init_x, init_y);
-        ter.renderFrame(world);
+
+        System.out.println("Processed " + totalCharacters + " characters.");
+    }
+
+    private void saveGame(TETile[][] world) {
+        File file = new File(gameFilename);
+        StringBuilder content = new StringBuilder();
+        for (int i = 0; i < world.length; i++) {
+            for (int j = 0; j < world[0].length; j++) {
+                content.append(world[i][j].description()).append(",");
+            }
+            content.append("\n");
+        }
+        try {
+            Files.writeString(file.toPath(), content.toString());
+        } catch (IOException e) {
+            System.out.println("file write exception.");
+        }
+    }
+
+    private int[] loadGame(TETile[][] world) {
+        File file = new File(gameFilename);
+        if (!file.exists()) {
+            System.out.println("Game file is not existed.");
+            return null;
+        }
+        int x = -1;
+        int y = -1;
+        try {
+            List<String> content = Files.readAllLines(file.toPath());
+            for (int i = 0; i < content.size(); i++) {
+                String[] s = content.get(i).split(",");
+                for (int j = 0; j < s.length; j++) {
+                    switch (s[j]) {
+                        case "nothing":
+                            world[i][j] = Tileset.NOTHING;
+                            break;
+                        case "floor":
+                            world[i][j] = Tileset.FLOOR;
+                            break;
+                        case "wall":
+                            world[i][j] = Tileset.WALL;
+                            break;
+                        case "avatar":
+                            world[i][j] = Tileset.AVATAR;
+                            x = i;
+                            y = j;
+                            this.avatar_x = x;
+                            this.avatar_y = y;
+                            break;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("load file exception");
+        }
+        return new int[]{x, y};
     }
 
     private static int calIndex(int x, int y, TETile[][] world) {
@@ -114,7 +199,7 @@ public class Engine {
         }
     }
 
-    private static void generateRoom(TETile[][] world, int init_x, int init_y) {
+    private void generateRoom(TETile[][] world, int init_x, int init_y) {
         Room rectangularRoom = new RectangularRoom(init_x, init_y, 2, world);
         Room initRoom = rectangularRoom;
         rectangularRoom.fillWithFloors(world);
@@ -129,6 +214,8 @@ public class Engine {
         if (rectangularRoom.getStatus() || hallway.getStatus()) {
             return;
         }
+        this.avatar_x = rectangularRoom.getInputCoordinate()[0];
+        this.avatar_y = rectangularRoom.getInputCoordinate()[1];
 
         for (int i = 0; i < 200; i++) {
             rectangularRoom = new RectangularRoom(
@@ -136,7 +223,7 @@ public class Engine {
                     hallway.getOutputCoordinate()[1],
                     RANDOM.nextInt(3) + 2,
                     world);
-            System.out.println("room:" + rectangularRoom.info());
+//            System.out.println("room:" + rectangularRoom.info());
             if (rectangularRoom.getStatus()) {
                 break;
             }
@@ -148,7 +235,7 @@ public class Engine {
                     rectangularRoom.getOutputCoordinate()[1],
                     RANDOM.nextInt(9) + 1,
                     world);
-            System.out.println("hallway:" + hallway.info());
+//            System.out.println("hallway:" + hallway.info());
             if (hallway.getStatus()) {
                 break;
             }
@@ -173,7 +260,7 @@ public class Engine {
                     hallway.getOutputCoordinate()[1],
                     RANDOM.nextInt(3) + 2,
                     world);
-            System.out.println("room:" + rectangularRoom.info());
+//            System.out.println("room:" + rectangularRoom.info());
             if (rectangularRoom.getStatus()) {
                 break;
             }
@@ -185,7 +272,7 @@ public class Engine {
                     rectangularRoom.getOutputCoordinate()[1],
                     RANDOM.nextInt(9) + 1,
                     world);
-            System.out.println("hallway:" + hallway.info());
+//            System.out.println("hallway:" + hallway.info());
             if (hallway.getStatus()) {
                 break;
             }
@@ -220,11 +307,43 @@ public class Engine {
         // passed in as an argument, and return a 2D tile representation of the
         // world that would have been drawn if the same inputs had been given
         // to interactWithKeyboard().
-        //
         // See proj3.byow.InputDemo for a demo of how you can make a nice clean interface
         // that works for many different input types.
 
-        TETile[][] finalWorldFrame = null;
-        return finalWorldFrame;
+        // initialize the tile rendering engine with a window of size width x height
+
+        // initialize tiles
+        TETile[][] world = new TETile[WIDTH][HEIGHT];
+        for (int x = 0; x < world.length; x += 1) {
+            for (int y = 0; y < world[0].length; y += 1) {
+                world[x][y] = Tileset.NOTHING;
+            }
+        }
+        int init_x = RANDOM.nextInt(WIDTH - 2) + 1;
+        int init_y = RANDOM.nextInt(HEIGHT - 2) + 1;
+//        generateSpanningTree(world, init_x, init_y);
+        generateRoom(world, init_x, init_y);
+        return world;
+    }
+
+    public void render(TETile[][] world, int avatar_x, int avatar_y) {
+        if (world == null) {
+            return;
+        }
+        if (!this.ter.init) {
+            this.ter.initialize(WIDTH, HEIGHT);
+        }
+        world[this.avatar_x][this.avatar_y] = Tileset.AVATAR;
+        if ((avatar_x >= 0) &&
+                (avatar_x < world.length) &&
+                (avatar_y >= 0) &&
+                (avatar_y < world[0].length) &&
+                (world[avatar_x][avatar_y] == Tileset.FLOOR)) {
+            world[avatar_x][avatar_y] = Tileset.AVATAR;
+            world[this.avatar_x][this.avatar_y] = Tileset.FLOOR;
+            this.avatar_x = avatar_x;
+            this.avatar_y = avatar_y;
+        }
+        this.ter.renderFrame(world);
     }
 }

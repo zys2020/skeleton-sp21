@@ -112,7 +112,6 @@ public class HallWay implements Room {
                 world[item[0]][item[1]] = Tileset.FLOOR;
             }
         }
-//        world[this.getInputCoordinate()[0]][this.getInputCoordinate()[1]] = Tileset.TREE;
         world[this.getInputCoordinate()[0]][this.getInputCoordinate()[1]] = Tileset.FLOOR;
     }
 

@@ -156,7 +156,6 @@ public class RectangularRoom implements Room {
                 world[item[0]][item[1]] = Tileset.FLOOR;
             }
         }
-//        world[this.input_x][this.input_y] = Tileset.TREE;
         world[this.input_x][this.input_y] = Tileset.FLOOR;
         world[this.output_x][this.output_y] = Tileset.FLOOR;
     }
